@@ -274,6 +274,54 @@ body::after {
 .cat-chip:hover { border-color: var(--muted); color: var(--text); }
 .cat-chip.selected { border-color: var(--green); color: var(--green); background: var(--green-dim); }
 
+/* WELCOME SCREEN */
+.welcome-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; transition: opacity 0.5s ease;
+}
+.welcome-overlay.hide { opacity: 0; pointer-events: none; }
+.welcome-box {
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: 24px; padding: 48px 44px; width: 420px;
+  text-align: center; position: relative; overflow: hidden;
+}
+.welcome-box::before {
+  content: '';
+  position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.welcome-emoji { font-size: 52px; margin-bottom: 18px; }
+.welcome-title { font-size: 26px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+.welcome-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+.welcome-input {
+  width: 100%; padding: 14px 18px;
+  background: var(--surface); border: 1.5px solid var(--border2);
+  border-radius: 12px; color: var(--text);
+  font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 600;
+  outline: none; text-align: center; margin-bottom: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.welcome-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,229,160,0.12); }
+.welcome-input::placeholder { color: var(--muted); font-weight: 400; }
+.welcome-btn {
+  width: 100%; padding: 14px;
+  background: var(--green); color: var(--bg);
+  border: none; border-radius: 12px;
+  font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.welcome-btn:hover { opacity: 0.88; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,229,160,0.3); }
+
+/* PROFILE MODAL */
+.profile-btn {
+  cursor: pointer; transition: opacity 0.2s;
+}
+.profile-btn:hover { opacity: 0.8; }
+
 /* TOAST */
 .toast {
   position: fixed; bottom: 28px; right: 28px;
@@ -350,6 +398,17 @@ body::after {
 </head>
 <body>
 
+<!-- WELCOME SCREEN -->
+<div class="welcome-overlay" id="welcomeOverlay">
+  <div class="welcome-box">
+    <div class="welcome-emoji">💰</div>
+    <div class="welcome-title">Welcome to ExpenseFlow</div>
+    <div class="welcome-sub">Your smart personal finance tracker.<br>Let's start by setting up your profile!</div>
+    <input class="welcome-input" id="welcomeName" type="text" placeholder="Enter your name..." maxlength="20" />
+    <button class="welcome-btn" onclick="saveUserName()">Get Started →</button>
+  </div>
+</div>
+
 <!-- SIDEBAR -->
 <nav class="sidebar">
   <div class="logo">
@@ -363,9 +422,9 @@ body::after {
   <div class="nav-item" onclick="showView('analytics',this)"><span class="nav-icon">📈</span><span>Analytics</span></div>
   <div class="nav-item" onclick="showView('budget',this)"><span class="nav-icon">🎯</span><span>Budget</span></div>
   <div class="sidebar-bottom">
-    <div class="user-pill">
-      <div class="user-avatar">S</div>
-      <div><div class="user-name">Smaira</div><div class="user-sub">Free Plan</div></div>
+    <div class="user-pill profile-btn" onclick="editName()" title="Click to change name">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div><div class="user-name" id="sidebarName">Loading...</div><div class="user-sub">Click to edit ✏️</div></div>
     </div>
   </div>
 </nav>
@@ -377,7 +436,7 @@ body::after {
   <div class="view active" id="dashboard">
     <div class="page-header">
       <div>
-        <div class="page-title">Good evening, Smaira 👋</div>
+        <div class="page-title" id="greeting">Good evening 👋</div>
         <div class="page-sub">Here's your financial overview</div>
       </div>
       <button class="btn btn-primary" onclick="openModal()">+ Add Expense</button>
@@ -858,13 +917,65 @@ function showToast(msg, type = 'success') {
 }
 
 // ─────────────────────────────────────────
+// USER NAME
+// ─────────────────────────────────────────
+let userName = '';
+
+function saveUserName() {
+  const input = document.getElementById('welcomeName').value.trim();
+  if (!input) { document.getElementById('welcomeName').focus(); return; }
+  userName = input;
+  try { localStorage.setItem('ef_username', userName); } catch(e) {}
+  applyUserName();
+  const overlay = document.getElementById('welcomeOverlay');
+  overlay.classList.add('hide');
+  setTimeout(() => overlay.style.display = 'none', 500);
+}
+
+function applyUserName() {
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const el = document.getElementById('greeting');
+  if (el) el.textContent = `${greet}, ${userName} 👋`;
+  const sn = document.getElementById('sidebarName');
+  if (sn) sn.textContent = userName;
+  const av = document.getElementById('userAvatar');
+  if (av) av.textContent = userName.charAt(0).toUpperCase();
+}
+
+function editName() {
+  const newName = prompt('Enter your name:', userName);
+  if (newName && newName.trim()) {
+    userName = newName.trim();
+    try { localStorage.setItem('ef_username', userName); } catch(e) {}
+    applyUserName();
+    showToast('✅ Name updated!', 'success');
+  }
+}
+
+// ─────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────
 load();
 
+// Load username
+try { userName = localStorage.getItem('ef_username') || ''; } catch(e) {}
+
+if (userName) {
+  // Returning user — skip welcome screen
+  document.getElementById('welcomeOverlay').style.display = 'none';
+  applyUserName();
+} else {
+  // New user — show welcome screen
+  setTimeout(() => document.getElementById('welcomeName').focus(), 300);
+  // Enter key support
+  document.getElementById('welcomeName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveUserName();
+  });
+}
+
 // Add sample data if empty
 if (!expenses.length) {
-  const today = new Date();
   const fmt2 = d => d.toISOString().split('T')[0];
   const d = (n) => { const x = new Date(); x.setDate(x.getDate() - n); return fmt2(x); };
   expenses = [
